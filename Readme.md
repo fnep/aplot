@@ -1,6 +1,6 @@
-Read and show single metrics from [atop](http://www.atoptool.nl/) raw logs. This is for example nice to show the last 6 hours average CPU load in a nice diagram text mode diagram using unicode braille characters (what is the default) on login. 
+Read and show single metrics from [atop](http://www.atoptool.nl/) raw logs. This is for example nice to show average CPU load in a nice text mode diagram using unicode braille characters (what is the default) on login. 
 
-The script supports python2.7+ and python3.5+. It allows to dump the data as csv, json or ascii table and plot simple graphs via [gnuplot subprocess](http://www.gnuplot.info/) or [diagram](https://github.com/tehmaze/diagram).
+The script supports python2.7+ and python3.5+. It allows to dump the data as csv, json or ascii table and to plot simple graphs via [gnuplot subprocess](http://www.gnuplot.info/) or [diagram](https://github.com/tehmaze/diagram).
  
 ### Requirements
 
@@ -10,7 +10,7 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
 
 1. Copy the `aplot.py` to your preferred destination and give it execute permissions.
 2. Install requirements: `pip3 install -r requirements.txt`
-3. (optional) Add you preferred call to your `~/.profile` to show it on login.
+3. (optional) Add your preferred call to your `~/.profile` to show it on login.
 
 ### Usage
 
@@ -30,7 +30,7 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
     
         metrics                       Print a list of all possible metric_path's.
     
-        -e <time>, --end=<time>       The latest value to plot in ISO8601 format. Defaults to now. [default: 2016-08-06T11:26:00]
+        -e <time>, --end=<time>       The latest value to plot in ISO8601 format. Defaults to now. [default: now]
         -r <hours>, --range=<hours>   Number of hours, backwards from --stop, top plot. [default: 6]
         -x <lines>, --width=<lines>   Width of plotted graphs in text lines. [default: 59]
         -y <lines>, --height=<lines>  Height of plotted graphs in text lines. [default: 9]
@@ -43,6 +43,7 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
 ### Example
 
 * `$ ./aplot.py diagram` 
+* 
   ![example](example.png)
 
 
