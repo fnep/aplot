@@ -40,6 +40,18 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
     
         <metric>...                   The metric to display. Defaults to display CPL.avg5    
 
+#### Metrics:
+
+Which metrics are availbale depends on your atop installation, but in general you can assume something like:
+* CPL.avg1, CPL.avg15, CPL.avg5, CPL.csw, CPL.intr, CPU.idle, CPU.irq, CPU.sys, CPU.user, CPU.wait
+* DSK.sd_.avio, DSK.sd_.busy, DSK.sd_.read, DSK.sd_.write
+* MEM.buff, MEM.cache, MEM.free, MEM.slab, MEM.tot
+* NET.eth_.pcki, NET.eth_.pcko, NET.eth_.si, NET.eth_.so
+* NET.network.deliv, NET.network.ipfrw, NET.network.ipi, NET.network.ipo
+* NET.transport.tcpi, NET.transport.tcpo, NET.transport.udpi, NET.transport.udpo
+* PAG.scan, PAG.stall, PAG.swin, PAG.swout, PRC.exit, PRC.proc, PRC.sys, PRC.user, PRC.zombie
+* SWP.free, SWP.tot, SWP.vmcom, SWP.vmlim
+
 ### Example
 
 * `$ ./aplot.py diagram` 
