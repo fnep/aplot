@@ -43,7 +43,7 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
 ### Example
 
 * `$ ./aplot.py diagram` 
-* 
+ 
   ![example](example.png)
 
 
