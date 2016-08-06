@@ -40,7 +40,7 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
     
         <metric>...                   The metric to display. Defaults to display CPL.avg5    
 
-#### Metrics:
+#### Metrics
 
 Which metrics are availbale depends on your atop installation, but in general you can assume something like:
 * CPL.avg1, CPL.avg15, CPL.avg5, CPL.csw, CPL.intr, CPU.idle, CPU.irq, CPU.sys, CPU.user, CPU.wait
@@ -52,7 +52,7 @@ Which metrics are availbale depends on your atop installation, but in general yo
 * PAG.scan, PAG.stall, PAG.swin, PAG.swout, PRC.exit, PRC.proc, PRC.sys, PRC.user, PRC.zombie
 * SWP.free, SWP.tot, SWP.vmcom, SWP.vmlim
 
-### Example
+### Examples
 
 ##### `$ ./aplot.py diagram` 
  
@@ -92,6 +92,6 @@ Which metrics are availbale depends on your atop installation, but in general yo
 }
 ```
 
-### Related:
+### Related
 
 * The tool `atopsar` also allows to get reports and statistics from atop raw logfiles.
