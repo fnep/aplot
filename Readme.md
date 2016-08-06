@@ -54,10 +54,43 @@ Which metrics are availbale depends on your atop installation, but in general yo
 
 ### Example
 
-* `$ ./aplot.py diagram` 
+##### `$ ./aplot.py diagram` 
  
   ![example](example.png)
 
+
+##### `$ ./aplot.py json CPL.avg5 SWP.free MEM.free --range 1 | json_pp`
+
+```
+
+{
+   "2016-08-06T12:09:57" : {
+      "CPL.avg5" : 0.14,
+      "MEM.free" : 878077542,
+      "SWP.free" : 15998753177
+   },
+   "2016-08-06T12:19:57" : {
+      "CPL.avg5" : 0.11,
+      "MEM.free" : 875560960,
+      "SWP.free" : 15998753177
+   },
+   "2016-08-06T12:29:57" : {
+      "CPL.avg5" : 0.1,
+      "MEM.free" : 877867827,
+      "SWP.free" : 15998753177
+   },
+   "2016-08-06T12:39:57" : {
+      "CPL.avg5" : 0.12,
+      "MEM.free" : 878811545,
+      "SWP.free" : 15998753177
+   },
+   "2016-08-06T12:49:57" : {
+      "CPL.avg5" : 0.05,
+      "MEM.free" : 879126118,
+      "SWP.free" : 15998753177
+   }
+}
+```
 
 ### Related:
 
