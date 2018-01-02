@@ -2,6 +2,10 @@ Read and show single metrics from [atop](http://www.atoptool.nl/) raw logs. This
 
 The script supports python2.7+ and python3.5+. It allows to dump the data as csv, json or ascii table and to plot simple graphs via [gnuplot subprocess](http://www.gnuplot.info/) or [diagram](https://github.com/tehmaze/diagram).
  
+### Warning
+
+No batteries included ... this is just the code i use. It's not actively maintained. It's just here in case it's useful for somebody.
+ 
 ### Requirements
 
 * This script extracts its data from a raw logfile that has been recorded by __atop__. If you install atop on a Ubuntu or RedHat / CentOS like linux distribution (`apt-get install atop` / `yum install atop`), it comes with a [cronjob](http://linux.die.net/man/1/crontab) which writes the required data to `/var/log/atop/atop_YYYYMMDD` (where YYYYMMDD reflects the date) every few minutes. Otherwise you may need to do this yourself using [`atop -w`](http://linux.die.net/man/1/atop).
