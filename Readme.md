@@ -4,7 +4,8 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
  
 ### Warning
 
-No batteries included ... this is just the code i use. It's not actively maintained. It's just here in case it's useful for somebody.
+* __No batteries included__ ... this is just the code i use. __It's not actively maintained__. It's just here in case it's useful for somebody.
+* __Require same machine__ run this code in same machine when using atop write. sometimes atop can't decode the binary files _it seems different machine have different binary file, i was logging atop from raspberry pi(raspi-os) and process it with virtualbox(ubuntu 17)_
  
 ### Requirements
 
