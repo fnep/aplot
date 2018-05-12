@@ -294,14 +294,14 @@ def main():
     elif arguments['table']:
 
         from tabulate import tabulate
-        print(tabulate([[time] + [py_.deep_get(value, metric) for metric in metrics]
+        print(tabulate([[time] + [py_.get(value, metric) for metric in metrics]
                         for time, value in parser.result.items()],
                        ['time'] + metrics, tablefmt="plain"))
 
     elif arguments['json']:
 
         from json import dumps
-        print(dumps({time.isoformat(): {metric: py_.deep_get(value, metric) for metric in metrics}
+        print(dumps({time.isoformat(): {metric: py_.get(value, metric) for metric in metrics}
                      for time, value in parser.result.items()}))
 
     elif arguments['csv']:
@@ -310,7 +310,7 @@ def main():
         writer = csv.writer(sys.stdout)
         writer.writerow(['time'] + metrics)
         for time, value in parser.result.items():
-            writer.writerow([time.isoformat()] + [py_.deep_get(value, metric) for metric in metrics])
+            writer.writerow([time.isoformat()] + [py_.get(value, metric) for metric in metrics])
 
     elif arguments['gnuplot']:
 
@@ -337,7 +337,7 @@ def main():
 
             for time, value in parser.result.items():
                 process.stdin.write(b"%s\t%s\n" % (str(time.isoformat()).encode('utf-8'),
-                                                   str(py_.deep_get(value, metric)).encode('utf-8')))
+                                                   str(py_.get(value, metric)).encode('utf-8')))
 
             process.stdin.write(b"e\n")
             process.stdin.flush()
