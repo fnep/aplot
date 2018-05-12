@@ -1,6 +1,6 @@
-iso8601
-pydash
-humanfriendly
-tabulate
-diagram
-docopt
+iso8601==0.1.12
+pydash==4.5.0
+humanfriendly==4.12.1
+tabulate==0.8.2
+diagram==0.2.25
+docopt==0.6.2
