@@ -366,7 +366,7 @@ def main():
 
         for metric in metrics:
             engine = diagram.AxisGraph(diagram.Point((width, height)), DiagramOptions())
-            engine.update([py_.deep_get(value, metric) for value in parser.result.values()])
+            engine.update([py_.get(value, metric) for value in parser.result.values()])
             if hasattr(sys.stdout, 'buffer'):
                 engine.render(sys.stdout.buffer)
             else:
