@@ -135,7 +135,7 @@ class AtopParser(object):
         result = set()
 
         for entry in self.result.values():
-            py_.deep_map_values(entry, lambda __, path: result.add(tuple(path)))
+            py_.map_values_deep(entry, lambda __, path: result.add(tuple(path)))
 
         return sorted(result)
 
