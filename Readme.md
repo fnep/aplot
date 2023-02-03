@@ -1,6 +1,6 @@
 Read and show single metrics from [atop](http://www.atoptool.nl/) raw logs. This is for example nice to show average CPU load in a nice text mode diagram using unicode braille characters (what is the default) on login. 
 
-The script supports python2.7+ and python3.5+. It allows to dump the data as csv, json or ascii table and to plot simple graphs via [gnuplot subprocess](http://www.gnuplot.info/) or [diagram](https://github.com/tehmaze/diagram).
+The script supports python3.5+. It allows to dump the data as csv, json or ascii table and to plot simple graphs via [gnuplot subprocess](http://www.gnuplot.info/) or [diagram](https://github.com/tehmaze/diagram).
  
 ### Warning
 
@@ -13,17 +13,16 @@ The script supports python2.7+ and python3.5+. It allows to dump the data as csv
 
 ### Installation
 
-1. Copy the `aplot.py` to your preferred destination and give it execute permissions.
-2. Install requirements: `pip3 install -r requirements.txt`
-3. (optional) Add your preferred call to your `~/.profile` to show it on login.
+1. Checkout the repository and install vial `python3 -m aplot` (where aplot is a path to checkout).
+2. (optional) Add your preferred call to your `~/.profile` to show it on login.
 
 ### Usage
 
     Usage:
     
-      ./aplot.py metrics [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>]
-      ./aplot.py (csv|json|table) [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>] [<metric>...]
-      ./aplot.py (diagram|gnuplot) [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>] [-x <lines>] [-y <lines>] [<metric>...]
+      python3 -m aplot metrics [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>]
+      python3 -m aplot (csv|json|table) [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>] [<metric>...]
+      python3 -m aplot (diagram|gnuplot) [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>] [-x <lines>] [-y <lines>] [<metric>...]
     
     Options:
     
