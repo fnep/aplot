@@ -13,7 +13,7 @@ The script supports python3.5+. It allows to dump the data as csv, json or ascii
 
 ### Installation
 
-1. Checkout the repository and install vial `python3 -m aplot` (where aplot is a path to checkout).
+1. Checkout the repository and install via `pip3 install ./aplot` (where `./aplot` is a path to checkout).
 2. (optional) Add your preferred call to your `~/.profile` to show it on login.
 
 ### Usage
