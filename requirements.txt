@@ -1,5 +1,5 @@
 iso8601==0.1.12
-pydash==5.0.0
+pydash==6.0.0
 humanfriendly==4.12.1
 tabulate==0.8.2
 diagram==0.2.25
