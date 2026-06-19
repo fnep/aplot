@@ -131,6 +131,19 @@ aplot table --path 'data/atop_%Y%m%d' --range 24 --user 1004
 aplot table --path 'data/atop_%Y%m%d' --range 24 --user alice utime stime
 ```
 
+##### Hourly min/mean/max of CPU and memory for a user (requires [miller](https://miller.readthedocs.io/))
+
+```
+aplot csv --path 'data/atop_%Y%m%d' --end '2026-06-18T23:59' --range 168 \
+    --user 1004 utime stime vmem rmem \
+  | mlr --csv \
+    put '$hour = strftime(strptime($time, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H")' \
+    then stats1 -a min,mean,max -f utime,stime,vmem,rmem -g hour \
+    then format-values -f %.0f
+```
+
+Output columns: `hour`, then `utime_min`, `utime_mean`, `utime_max`, `stime_min`, `stime_mean`, `stime_max`, `vmem_min`, `vmem_mean`, `vmem_max`, `rmem_min`, `rmem_mean`, `rmem_max`. `utime`/`stime` are CPU ticks (1/100 s each); `vmem`/`rmem` are in bytes.
+
 ##### Single file (no date placeholder)
 
 ```
