@@ -1,99 +1,152 @@
-Read and show single metrics from [atop](http://www.atoptool.nl/) raw logs. This is for example nice to show average CPU load in a nice text mode diagram using unicode braille characters (what is the default) on login. 
+Read and show single metrics from [atop](http://www.atoptool.nl/) raw logs. This is for example nice to show average CPU load in a nice text mode diagram using unicode braille characters on login.
 
-The script supports python3.5+. It allows to dump the data as csv, json or ascii table and to plot simple graphs via [gnuplot subprocess](http://www.gnuplot.info/) or [diagram](https://github.com/tehmaze/diagram).
- 
+The script parses atop binary data files directly (no `atop` binary required at read time). It can dump data as CSV, JSON or ASCII table and plot simple graphs via [gnuplot](http://www.gnuplot.info/) or [diagram](https://github.com/tehmaze/diagram).
+
 ### Warning
 
-* __No batteries included__ ... this is just the code i use. __It's not actively maintained__. It's just here in case it's useful for somebody.
-* __Require same machine__ run this code in same machine when using atop write. sometimes atop can't decode the binary files _it seems different machine have different binary file, i was logging atop from raspberry pi(raspi-os) and process it with virtualbox(ubuntu 17)_
- 
+* __No batteries included__ ... this is just the code I use. __It's not actively maintained__. It's just here in case it's useful for somebody.
+* __Require compatible atop version__ — binary files must be from atop 1.26. Files from different atop versions or architectures may not parse correctly.
+
 ### Requirements
 
-* This script extracts its data from a raw logfile that has been recorded by __atop__. If you install atop on a Ubuntu or RedHat / CentOS like linux distribution (`apt-get install atop` / `yum install atop`), it comes with a [cronjob](http://linux.die.net/man/1/crontab) which writes the required data to `/var/log/atop/atop_YYYYMMDD` (where YYYYMMDD reflects the date) every few minutes. Otherwise you may need to do this yourself using [`atop -w`](http://linux.die.net/man/1/atop).
+* Python 3.10+
+* A raw logfile recorded by __atop__. Install atop on Ubuntu/Debian (`apt-get install atop`) or RedHat/CentOS (`yum install atop`) — it ships with a cronjob that writes data to `/var/log/atop/atop_YYYYMMDD` every few minutes. Otherwise record manually with [`atop -w`](http://linux.die.net/man/1/atop).
+* Python dependencies: `atoparser`, `tabulate`, `pydash`, `diagram`
 
 ### Installation
 
-1. Checkout the repository and install via `pip3 install ./aplot` (where `./aplot` is a path to checkout).
-2. (optional) Add your preferred call to your `~/.profile` to show it on login.
+1. Checkout the repository and install via `pip3 install ./aplot` (where `./aplot` is the path to the checkout).
+2. (optional) Add your preferred call to `~/.profile` to show it on login.
 
 ### Usage
 
-    Usage:
-    
-      python3 -m aplot metrics [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>]
-      python3 -m aplot (csv|json|table) [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>] [<metric>...]
-      python3 -m aplot (diagram|gnuplot) [-c <cmd>] [-p <path>] [-e <time>] [-r <hours>] [-x <lines>] [-y <lines>] [<metric>...]
-    
-    Options:
-    
-        diagram                       Print the results as a braille character diagram (default).
-        gnuplot                       Print the results using a gnuplot subprocess.
-        table                         Print the results as ascii table.
-        csv                           Print the results as csv table.
-        json                          Print the results as json datagram.
-    
-        metrics                       Print a list of all possible metric_path's.
-    
-        -e <time>, --end=<time>       The latest value to plot in ISO8601 format. Defaults to now. [default: now]
-        -r <hours>, --range=<hours>   Number of hours, backwards from --stop, top plot. [default: 6]
-        -x <lines>, --width=<lines>   Width of plotted graphs in text lines. [default: 59]
-        -y <lines>, --height=<lines>  Height of plotted graphs in text lines. [default: 9]
-        -p <path>, --path=<path>      Path to atop raw logs with date placeholders. [default: /var/log/atop/atop_%Y%m%d]
-        -c <cmd>, --cmd <cmd>         Command to call with the raw files. [default: atop -f -r {path}]
-    
-    
-        <metric>...                   The metric to display. Defaults to display CPL.avg5    
+Global options (`-p`, `-e`, `-r`) can be placed before or after the subcommand name.
+
+```
+python3 -m aplot <subcommand> [options]
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|---|---|
+| `metrics` | Print all available metric paths |
+| `users` | Print all user IDs (and names) seen in the data |
+| `csv [metric...]` | Print results as CSV |
+| `json [metric...]` | Print results as JSON |
+| `table [metric...]` | Print results as an ASCII table |
+| `diagram [metric...]` | Plot results as a braille character diagram |
+| `gnuplot [metric...]` | Plot results using a gnuplot subprocess |
+
+**Options (available on all subcommands):**
+
+```
+-p <path>, --path <path>    Path to atop raw log file(s). Use strftime placeholders
+                            (%Y, %m, %d) for date-based file sets, or a direct path
+                            for a single file. [default: /var/log/atop/atop_%Y%m%d]
+-e <time>, --end <time>     Latest timestamp to include, in ISO 8601 format. [default: now]
+-r <hours>, --range <hours> Number of hours backwards from --end to include. [default: 6]
+```
+
+**Options for `csv`, `json`, `table`, `diagram`, `gnuplot`:**
+
+```
+metric...                   One or more metric paths to display. [default: CPL.avg5]
+-u <user>, --user <user>    Show per-interval aggregated stats for a user (name or UID)
+                            instead of system metrics. Metrics default to all user fields.
+```
+
+**Additional options for `diagram` and `gnuplot`:**
+
+```
+-x <cols>, --width <cols>   Graph width in columns. [default: 59]
+-y <lines>, --height <lines> Graph height in lines. [default: 9]
+```
 
 #### Metrics
 
-Which metrics are availbale depends on your atop installation, but in general you can assume something like:
-* CPL.avg1, CPL.avg15, CPL.avg5, CPL.csw, CPL.intr, CPU.idle, CPU.irq, CPU.sys, CPU.user, CPU.wait
-* DSK.sd_.avio, DSK.sd_.busy, DSK.sd_.read, DSK.sd_.write
-* MEM.buff, MEM.cache, MEM.free, MEM.slab, MEM.tot
-* NET.eth_.pcki, NET.eth_.pcko, NET.eth_.si, NET.eth_.so
-* NET.network.deliv, NET.network.ipfrw, NET.network.ipi, NET.network.ipo
-* NET.transport.tcpi, NET.transport.tcpo, NET.transport.udpi, NET.transport.udpo
-* PAG.scan, PAG.stall, PAG.swin, PAG.swout, PRC.exit, PRC.proc, PRC.sys, PRC.user, PRC.zombie
-* SWP.free, SWP.tot, SWP.vmcom, SWP.vmlim
+Use `aplot metrics` to list available metrics for your data. Common ones:
+
+* `CPL.avg1`, `CPL.avg5`, `CPL.avg15`, `CPL.csw`, `CPL.intr`
+* `CPU.idle`, `CPU.irq`, `CPU.sys`, `CPU.user`, `CPU.wait`
+* `DSK.<name>.avio`, `DSK.<name>.read`, `DSK.<name>.write`
+* `MEM.buff`, `MEM.cache`, `MEM.free`, `MEM.slab`, `MEM.tot`
+* `NET.<iface>.pcki`, `NET.<iface>.pcko`, `NET.<iface>.si`, `NET.<iface>.so`
+* `PAG.scan`, `PAG.stall`, `PAG.swin`, `PAG.swout`
+* `PRC.exit`, `PRC.proc`, `SWP.free`, `SWP.tot`, `SWP.vmcom`, `SWP.vmlim`
+
+#### User metrics
+
+When `--user` is given, the following fields are available as metrics:
+
+| Field | Description |
+|---|---|
+| `procs` | Number of processes owned by the user in this interval |
+| `utime` | Aggregated user CPU ticks |
+| `stime` | Aggregated system CPU ticks |
+| `vmem` | Total virtual memory (bytes) |
+| `rmem` | Total resident memory (bytes) |
 
 ### Examples
 
-##### `$ ./aplot.py diagram` 
- 
-  ![example](example.png)
-
-
-##### `$ ./aplot.py json CPL.avg5 SWP.free MEM.free --range 1 | json_pp`
+##### Default diagram (CPU load average)
 
 ```
+aplot diagram
+```
 
+![example](example.png)
+
+##### CSV export over a date range
+
+```
+aplot csv --path 'data/atop_%Y%m%d' --end '2026-06-18T23:59:00' --range 168 \
+    CPL.avg5 CPU.user CPU.idle MEM.free
+```
+
+##### JSON output
+
+```
+aplot json CPL.avg5 SWP.free MEM.free --range 1
+```
+
+```json
 {
-   "2016-08-06T12:09:57" : {
-      "CPL.avg5" : 0.14,
-      "MEM.free" : 878077542,
-      "SWP.free" : 15998753177
-   },
-   "2016-08-06T12:19:57" : {
-      "CPL.avg5" : 0.11,
-      "MEM.free" : 875560960,
-      "SWP.free" : 15998753177
-   },
-   "2016-08-06T12:29:57" : {
-      "CPL.avg5" : 0.1,
-      "MEM.free" : 877867827,
-      "SWP.free" : 15998753177
-   },
-   "2016-08-06T12:39:57" : {
-      "CPL.avg5" : 0.12,
-      "MEM.free" : 878811545,
-      "SWP.free" : 15998753177
-   },
-   "2016-08-06T12:49:57" : {
-      "CPL.avg5" : 0.05,
-      "MEM.free" : 879126118,
-      "SWP.free" : 15998753177
-   }
+   "2016-08-06T12:09:57": { "CPL.avg5": 0.14, "MEM.free": 878077542, "SWP.free": 15998753177 },
+   "2016-08-06T12:19:57": { "CPL.avg5": 0.11, "MEM.free": 875560960, "SWP.free": 15998753177 }
 }
+```
+
+##### List users seen in a specific file
+
+```
+aplot users --path data/atop_20260616
+```
+
+##### Per-user CPU and memory table
+
+```
+aplot table --path 'data/atop_%Y%m%d' --range 24 --user 1004
+aplot table --path 'data/atop_%Y%m%d' --range 24 --user alice utime stime
+```
+
+##### Hourly min/mean/max of CPU and memory for a user (requires [miller](https://miller.readthedocs.io/))
+
+```
+aplot csv --path 'data/atop_%Y%m%d' --end '2026-06-18T23:59' --range 168 \
+    --user 1004 utime stime vmem rmem \
+  | mlr --csv \
+    put '$hour = strftime(strptime($time, "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H")' \
+    then stats1 -a min,mean,max -f utime,stime,vmem,rmem -g hour \
+    then format-values -f %.0f
+```
+
+Output columns: `hour`, then `utime_min`, `utime_mean`, `utime_max`, `stime_min`, `stime_mean`, `stime_max`, `vmem_min`, `vmem_mean`, `vmem_max`, `rmem_min`, `rmem_mean`, `rmem_max`. `utime`/`stime` are CPU ticks (1/100 s each); `vmem`/`rmem` are in bytes.
+
+##### Single file (no date placeholder)
+
+```
+aplot csv --path data/atop_20260616 CPL.avg5
 ```
 
 ### Related
