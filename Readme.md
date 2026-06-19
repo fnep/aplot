@@ -69,12 +69,11 @@ Use `aplot metrics` to list available metrics for your data. Common ones:
 
 * `CPL.avg1`, `CPL.avg5`, `CPL.avg15`, `CPL.csw`, `CPL.intr`
 * `CPU.idle`, `CPU.irq`, `CPU.sys`, `CPU.user`, `CPU.wait`
-* `DSK.<name>.avio`, `DSK.<name>.busy`, `DSK.<name>.read`, `DSK.<name>.write`
-* `MEM.buff`, `MEM.cache`, `MEM.free`, `MEM.physmem`, `MEM.slab`
+* `DSK.<name>.avio`, `DSK.<name>.read`, `DSK.<name>.write`
+* `MEM.buff`, `MEM.cache`, `MEM.free`, `MEM.slab`, `MEM.tot`
 * `NET.<iface>.pcki`, `NET.<iface>.pcko`, `NET.<iface>.si`, `NET.<iface>.so`
-* `NET.network.ipi`, `NET.network.ipo`, `NET.transport.tcpi`, `NET.transport.tcpo`
 * `PAG.scan`, `PAG.stall`, `PAG.swin`, `PAG.swout`
-* `PRC.exit`, `PRC.proc`, `SWP.free`, `SWP.tot`
+* `PRC.exit`, `PRC.proc`, `SWP.free`, `SWP.tot`, `SWP.vmcom`, `SWP.vmlim`
 
 #### User metrics
 
