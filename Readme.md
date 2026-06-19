@@ -9,7 +9,7 @@ The script parses atop binary data files directly (no `atop` binary required at 
 
 ### Requirements
 
-* Python 3.8+
+* Python 3.10+
 * A raw logfile recorded by __atop__. Install atop on Ubuntu/Debian (`apt-get install atop`) or RedHat/CentOS (`yum install atop`) — it ships with a cronjob that writes data to `/var/log/atop/atop_YYYYMMDD` every few minutes. Otherwise record manually with [`atop -w`](http://linux.die.net/man/1/atop).
 * Python dependencies: `atoparser`, `tabulate`, `pydash`, `diagram`
 
