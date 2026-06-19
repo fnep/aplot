@@ -4,7 +4,6 @@
 from datetime import datetime, timedelta
 from collections import OrderedDict
 import argparse
-import iso8601
 import re
 import sys
 import glob
@@ -268,7 +267,7 @@ def main():
 
     args = parser.parse_args()
 
-    end = iso8601.parse_date(args.end, default_timezone=None)
+    end = datetime.fromisoformat(args.end)
     begin = end - timedelta(hours=args.range)
     reader = AtopBinaryReader(args.path)
     metrics = getattr(args, 'metric', [])
