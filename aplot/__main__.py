@@ -156,6 +156,46 @@ def _parse_sstat(data, pagesize):
     return result
 
 
+# Offsets within a 604-byte pstat record (verified empirically).
+# GEN sub-struct starts at 0, CPU at 256, MEM at 416.
+_PSTAT_SIZE = 604
+_PSTAT_PID_OFF = 0        # int32
+_PSTAT_RUID_OFF = 8       # int32
+_PSTAT_NAME_OFF = 44      # char[15] (PNAMLEN)
+_PSTAT_STATE_OFF = 60     # char
+_PSTAT_CPU_UTIME_OFF = 244   # count_t (int64, ticks); GEN is 244 bytes (not 256)
+_PSTAT_CPU_STIME_OFF = 252   # count_t
+_PSTAT_MEM_VMEM_OFF = 428    # count_t (pages): MEM@404 + vmem@24
+_PSTAT_MEM_RMEM_OFF = 436    # count_t (pages): MEM@404 + rmem@32
+
+
+def _parse_pstat(data, nprocs, pagesize, hertz, uid_filter=None):
+    """Parse per-process records and aggregate by uid.
+
+    Returns a dict keyed by uid, each value a dict with aggregated metrics.
+    If uid_filter is set, only that uid is included.
+    """
+    by_uid = {}
+    for i in range(nprocs):
+        base = i * _PSTAT_SIZE
+        ruid = struct.unpack_from('<i', data, base + _PSTAT_RUID_OFF)[0]
+        if uid_filter is not None and ruid != uid_filter:
+            continue
+        name = data[base + _PSTAT_NAME_OFF:base + _PSTAT_NAME_OFF + 15].rstrip(b'\x00').decode(errors='ignore')
+        utime = struct.unpack_from('<q', data, base + _PSTAT_CPU_UTIME_OFF)[0]
+        stime = struct.unpack_from('<q', data, base + _PSTAT_CPU_STIME_OFF)[0]
+        vmem = struct.unpack_from('<q', data, base + _PSTAT_MEM_VMEM_OFF)[0] * pagesize
+        rmem = struct.unpack_from('<q', data, base + _PSTAT_MEM_RMEM_OFF)[0] * pagesize
+
+        entry = by_uid.setdefault(ruid, {'procs': 0, 'utime': 0, 'stime': 0, 'vmem': 0, 'rmem': 0})
+        entry['procs'] += 1
+        entry['utime'] += utime
+        entry['stime'] += stime
+        entry['vmem'] += vmem
+        entry['rmem'] += rmem
+    return by_uid
+
+
 class AtopBinaryReader(object):
 
     def __init__(self, path_schema):
@@ -180,10 +220,9 @@ class AtopBinaryReader(object):
                 elif len(available_times) == file_index + 1:
                     yield file_time.strftime(self._path_schema)
 
-    def read(self, begin, end):
-        """Yield (datetime, metrics_dict) for each sample in [begin, end]."""
+    def _iter_records(self, begin, end):
+        """Low-level iterator yielding (ts, rec, sstat_raw, pstat_raw) for each sample."""
         from atoparser.structs import atop_1_26
-        import ctypes
 
         for path in self.required_file_paths(begin, end):
             try:
@@ -195,6 +234,7 @@ class AtopBinaryReader(object):
                 header = atop_1_26.Header()
                 f.readinto(header)
                 pagesize = header.pagesize
+                hertz = header.hertz
 
                 first_record = True
                 while True:
@@ -204,62 +244,87 @@ class AtopBinaryReader(object):
 
                     try:
                         sstat_raw = zlib.decompress(f.read(rec['scomplen']))
-                        f.read(rec['pcomplen'])  # skip pstat (per-process data)
+                        pstat_raw = zlib.decompress(f.read(rec['pcomplen']))
                     except zlib.error:
                         break
 
-                    ts = datetime.fromtimestamp(rec['curtime'])
-
-                    # Skip the first record in each file: it holds cumulative-since-boot
-                    # counters rather than per-interval deltas.
+                    # Skip the first record: it holds cumulative-since-boot counters.
                     if first_record:
                         first_record = False
                         continue
 
+                    ts = datetime.fromtimestamp(rec['curtime'])
                     if self._filter_by_time and (ts < begin or ts > end):
                         continue
 
-                    metrics = _parse_sstat(sstat_raw, pagesize)
-                    metrics['PRC'] = {
-                        'proc': rec['nlist'],
-                        'exit': rec['nexit'],
-                    }
-                    yield ts, metrics
+                    yield ts, rec, sstat_raw, pstat_raw, pagesize, hertz
+
+    def read(self, begin, end):
+        """Yield (datetime, metrics_dict) for each sample in [begin, end]."""
+        for ts, rec, sstat_raw, pstat_raw, pagesize, hertz in self._iter_records(begin, end):
+            metrics = _parse_sstat(sstat_raw, pagesize)
+            metrics['PRC'] = {
+                'proc': rec['nlist'],
+                'exit': rec['nexit'],
+            }
+            yield ts, metrics
+
+    def read_uids(self, begin, end):
+        """Return a set of all UIDs seen across all samples in [begin, end]."""
+        uids = set()
+        for ts, rec, sstat_raw, pstat_raw, pagesize, hertz in self._iter_records(begin, end):
+            by_uid = _parse_pstat(pstat_raw, rec['nlist'], pagesize, hertz)
+            uids.update(by_uid)
+        return uids
+
+    def read_user(self, begin, end, uid):
+        """Yield (datetime, user_metrics_dict) aggregated for a single uid."""
+        for ts, rec, sstat_raw, pstat_raw, pagesize, hertz in self._iter_records(begin, end):
+            by_uid = _parse_pstat(pstat_raw, rec['nlist'], pagesize, hertz, uid_filter=uid)
+            yield ts, by_uid.get(uid, {'procs': 0, 'utime': 0, 'stime': 0, 'vmem': 0, 'rmem': 0})
 
 
 def main():
 
     now = datetime.now().replace(second=0, microsecond=0).isoformat()
 
-    parser = argparse.ArgumentParser(description='Atop log data analyzer.')
-    parser.add_argument('-p', '--path', default='/var/log/atop/atop_%Y%m%d',
-                        help='Path to atop raw logs with date placeholders. (default: %(default)s)')
-    parser.add_argument('-e', '--end', default=now,
-                        help='Latest value to plot in ISO8601 format. (default: now)')
-    parser.add_argument('-r', '--range', type=int, default=6, dest='range',
-                        help='Hours backwards from --end to plot. (default: %(default)s)')
+    global_opts = argparse.ArgumentParser(add_help=False)
+    global_opts.add_argument('-p', '--path', default='/var/log/atop/atop_%Y%m%d',
+                             help='Path to atop raw logs with date placeholders. (default: %(default)s)')
+    global_opts.add_argument('-e', '--end', default=now,
+                             help='Latest value to plot in ISO8601 format. (default: now)')
+    global_opts.add_argument('-r', '--range', type=int, default=6, dest='range',
+                             help='Hours backwards from --end to plot. (default: %(default)s)')
 
+    parser = argparse.ArgumentParser(description='Atop log data analyzer.', parents=[global_opts])
     subparsers = parser.add_subparsers(dest='command')
     subparsers.required = True
 
-    subparsers.add_parser('metrics', help="Print a list of all possible metric paths.")
+    subparsers.add_parser('metrics', help="Print a list of all possible metric paths.",
+                          parents=[global_opts])
+    subparsers.add_parser('users', help="Print all user IDs (and names) seen in the data.",
+                          parents=[global_opts])
 
     for cmd, help_text in [
         ('csv',  'Print results as CSV.'),
         ('json', 'Print results as JSON.'),
         ('table', 'Print results as an ASCII table.'),
     ]:
-        sub = subparsers.add_parser(cmd, help=help_text)
+        sub = subparsers.add_parser(cmd, help=help_text, parents=[global_opts])
         sub.add_argument('metric', nargs='*', default=['CPL.avg5'],
                          help='Metrics to display. (default: CPL.avg5)')
+        sub.add_argument('-u', '--user', metavar='USER',
+                         help='Show per-interval aggregated stats for a user (name or UID).')
 
     for cmd, help_text in [
         ('diagram', 'Print results as a braille character diagram.'),
         ('gnuplot', 'Print results using gnuplot.'),
     ]:
-        sub = subparsers.add_parser(cmd, help=help_text)
+        sub = subparsers.add_parser(cmd, help=help_text, parents=[global_opts])
         sub.add_argument('metric', nargs='*', default=['CPL.avg5'],
                          help='Metrics to display. (default: CPL.avg5)')
+        sub.add_argument('-u', '--user', metavar='USER',
+                         help='Show per-interval aggregated stats for a user (name or UID).')
         sub.add_argument('-x', '--width', type=int, default=59,
                          help='Graph width in columns. (default: %(default)s)')
         sub.add_argument('-y', '--height', type=int, default=9,
@@ -272,9 +337,64 @@ def main():
     reader = AtopBinaryReader(args.path)
     metrics = getattr(args, 'metric', [])
 
-    result = OrderedDict()
-    for ts, data in reader.read(begin, end):
-        result[ts] = data
+    if args.command == 'users':
+        import pwd
+        uids = reader.read_uids(begin, end)
+        if not uids:
+            sys.stderr.write('empty result\n')
+            sys.exit(1)
+        for uid in sorted(uids):
+            try:
+                name = pwd.getpwuid(uid).pw_name
+            except KeyError:
+                name = ''
+            print(f'{uid}\t{name}' if name else str(uid))
+        return
+
+    user_arg = getattr(args, 'user', None)
+    if user_arg is not None:
+        try:
+            uid = int(user_arg)
+        except ValueError:
+            import pwd
+            try:
+                uid = pwd.getpwnam(user_arg).pw_uid
+            except KeyError:
+                sys.stderr.write(f'unknown user: {user_arg}\n')
+                sys.exit(1)
+        user_fields = ['procs', 'utime', 'stime', 'vmem', 'rmem']
+        user_metrics = args.metric if args.metric != ['CPL.avg5'] else user_fields
+        rows = list(reader.read_user(begin, end, uid))
+        if not rows:
+            sys.stderr.write('empty result\n')
+            sys.exit(1)
+        headers = ['time'] + user_metrics
+
+        if args.command == 'table':
+            from tabulate import tabulate
+            print(tabulate([[ts] + [data[m] for m in user_metrics] for ts, data in rows],
+                           headers=headers, tablefmt='plain'))
+        elif args.command == 'json':
+            from json import dumps
+            print(dumps({ts.isoformat(): {m: data[m] for m in user_metrics} for ts, data in rows}))
+        elif args.command == 'csv':
+            import csv
+            writer = csv.writer(sys.stdout)
+            writer.writerow(headers)
+            for ts, data in rows:
+                writer.writerow([ts.isoformat()] + [data[m] for m in user_metrics])
+        elif args.command in ('diagram', 'gnuplot'):
+            result = OrderedDict((ts, data) for ts, data in rows)
+            metrics = user_metrics
+            get_value = lambda value, metric: value[metric]
+        if args.command not in ('diagram', 'gnuplot'):
+            return
+
+    if user_arg is None:
+        result = OrderedDict()
+        for ts, data in reader.read(begin, end):
+            result[ts] = data
+        get_value = py_.get
 
     if not result:
         sys.stderr.write('empty result\n')
@@ -332,7 +452,7 @@ def main():
 
             for time, value in result.items():
                 process.stdin.write(b"%s\t%s\n" % (str(time.isoformat()).encode('utf-8'),
-                                                    str(py_.get(value, metric)).encode('utf-8')))
+                                                    str(get_value(value, metric)).encode('utf-8')))
 
             process.stdin.write(b"e\n")
             process.stdin.flush()
@@ -358,7 +478,7 @@ def main():
 
         for metric in metrics:
             engine = diagram.AxisGraph(diagram.Point((args.width, args.height)), DiagramOptions())
-            engine.update([py_.get(value, metric) for value in result.values()])
+            engine.update([get_value(value, metric) for value in result.values()])
             if hasattr(sys.stdout, 'buffer'):
                 engine.render(sys.stdout.buffer)
             else:
