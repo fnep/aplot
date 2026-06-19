@@ -288,29 +288,26 @@ def main():
 
     now = datetime.now().replace(second=0, microsecond=0).isoformat()
 
-    global_opts = argparse.ArgumentParser(add_help=False)
-    global_opts.add_argument('-p', '--path', default='/var/log/atop/atop_%Y%m%d',
-                             help='Path to atop raw logs with date placeholders. (default: %(default)s)')
-    global_opts.add_argument('-e', '--end', default=now,
-                             help='Latest value to plot in ISO8601 format. (default: now)')
-    global_opts.add_argument('-r', '--range', type=int, default=6, dest='range',
-                             help='Hours backwards from --end to plot. (default: %(default)s)')
+    global_parser = argparse.ArgumentParser(add_help=False)
+    global_parser.add_argument('-p', '--path', default='/var/log/atop/atop_%Y%m%d')
+    global_parser.add_argument('-e', '--end', default=now)
+    global_parser.add_argument('-r', '--range', type=int, default=6, dest='range')
+    global_args, remaining = global_parser.parse_known_args()
 
-    parser = argparse.ArgumentParser(description='Atop log data analyzer.', parents=[global_opts])
+    parser = argparse.ArgumentParser(description='Atop log data analyzer.',
+                                     parents=[global_parser])
     subparsers = parser.add_subparsers(dest='command')
     subparsers.required = True
 
-    subparsers.add_parser('metrics', help="Print a list of all possible metric paths.",
-                          parents=[global_opts])
-    subparsers.add_parser('users', help="Print all user IDs (and names) seen in the data.",
-                          parents=[global_opts])
+    subparsers.add_parser('metrics', help="Print a list of all possible metric paths.")
+    subparsers.add_parser('users', help="Print all user IDs (and names) seen in the data.")
 
     for cmd, help_text in [
         ('csv',  'Print results as CSV.'),
         ('json', 'Print results as JSON.'),
         ('table', 'Print results as an ASCII table.'),
     ]:
-        sub = subparsers.add_parser(cmd, help=help_text, parents=[global_opts])
+        sub = subparsers.add_parser(cmd, help=help_text)
         sub.add_argument('metric', nargs='*', default=['CPL.avg5'],
                          help='Metrics to display. (default: CPL.avg5)')
         sub.add_argument('-u', '--user', metavar='USER',
@@ -320,7 +317,7 @@ def main():
         ('diagram', 'Print results as a braille character diagram.'),
         ('gnuplot', 'Print results using gnuplot.'),
     ]:
-        sub = subparsers.add_parser(cmd, help=help_text, parents=[global_opts])
+        sub = subparsers.add_parser(cmd, help=help_text)
         sub.add_argument('metric', nargs='*', default=['CPL.avg5'],
                          help='Metrics to display. (default: CPL.avg5)')
         sub.add_argument('-u', '--user', metavar='USER',
@@ -330,7 +327,7 @@ def main():
         sub.add_argument('-y', '--height', type=int, default=9,
                          help='Graph height in lines. (default: %(default)s)')
 
-    args = parser.parse_args()
+    args = parser.parse_args(remaining, namespace=global_args)
 
     end = datetime.fromisoformat(args.end)
     begin = end - timedelta(hours=args.range)
