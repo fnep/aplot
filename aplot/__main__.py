@@ -1,37 +1,9 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-""" Atop log data analyzer.
-
-Usage:
-  {cmd} metrics [-p <path>] [-e <time>] [-r <hours>]
-  {cmd} (csv|json|table) [-p <path>] [-e <time>] [-r <hours>] [<metric>...]
-  {cmd} (diagram|gnuplot) [-p <path>] [-e <time>] [-r <hours>] [-x <lines>] [-y <lines>] [<metric>...]
-
-Options:
-
-    diagram                       Print the results as a braille character diagram (default).
-    gnuplot                       Print the results using a gnuplot subprocess.
-    table                         Print the results as ascii table.
-    csv                           Print the results as csv table.
-    json                          Print the results as json datagram.
-
-    metrics                       Print a list of all possible metric_path's.
-
-    -e <time>, --end=<time>       The latest value to plot in ISO8601 format. Defaults to now. [default: {now}]
-    -r <hours>, --range=<hours>   Number of hours, backwards from --stop, top plot. [default: 6]
-    -x <lines>, --width=<lines>   Width of plotted graphs in text lines. [default: 59]
-    -y <lines>, --height=<lines>  Height of plotted graphs in text lines. [default: 9]
-    -p <path>, --path=<path>      Path to atop raw logs with date placeholders. [default: /var/log/atop/atop_%Y%m%d]
-
-
-    <metric>...                   The metric to display. Defaults to display CPL.avg5
-
-
-"""
-
 from datetime import datetime, timedelta
 from collections import OrderedDict
+import argparse
 import iso8601
 import re
 import sys
@@ -258,25 +230,58 @@ class AtopBinaryReader(object):
 
 def main():
 
-    from docopt import docopt
-    arguments = docopt(__doc__.format(cmd=__file__,
-                                      now=datetime.now().replace(second=0, microsecond=0).isoformat()))
+    now = datetime.now().replace(second=0, microsecond=0).isoformat()
 
-    time_range = int(arguments['--range'])
-    metrics = arguments['<metric>'] or ['CPL.avg5']
-    end = iso8601.parse_date(arguments['--end'], default_timezone=None)
-    begin = end - timedelta(hours=time_range)
-    reader = AtopBinaryReader(arguments['--path'])
+    parser = argparse.ArgumentParser(description='Atop log data analyzer.')
+    parser.add_argument('-p', '--path', default='/var/log/atop/atop_%Y%m%d',
+                        help='Path to atop raw logs with date placeholders. (default: %(default)s)')
+    parser.add_argument('-e', '--end', default=now,
+                        help='Latest value to plot in ISO8601 format. (default: now)')
+    parser.add_argument('-r', '--range', type=int, default=6, dest='range',
+                        help='Hours backwards from --end to plot. (default: %(default)s)')
+
+    subparsers = parser.add_subparsers(dest='command')
+    subparsers.required = True
+
+    subparsers.add_parser('metrics', help="Print a list of all possible metric paths.")
+
+    for cmd, help_text in [
+        ('csv',  'Print results as CSV.'),
+        ('json', 'Print results as JSON.'),
+        ('table', 'Print results as an ASCII table.'),
+    ]:
+        sub = subparsers.add_parser(cmd, help=help_text)
+        sub.add_argument('metric', nargs='*', default=['CPL.avg5'],
+                         help='Metrics to display. (default: CPL.avg5)')
+
+    for cmd, help_text in [
+        ('diagram', 'Print results as a braille character diagram.'),
+        ('gnuplot', 'Print results using gnuplot.'),
+    ]:
+        sub = subparsers.add_parser(cmd, help=help_text)
+        sub.add_argument('metric', nargs='*', default=['CPL.avg5'],
+                         help='Metrics to display. (default: CPL.avg5)')
+        sub.add_argument('-x', '--width', type=int, default=59,
+                         help='Graph width in columns. (default: %(default)s)')
+        sub.add_argument('-y', '--height', type=int, default=9,
+                         help='Graph height in lines. (default: %(default)s)')
+
+    args = parser.parse_args()
+
+    end = iso8601.parse_date(args.end, default_timezone=None)
+    begin = end - timedelta(hours=args.range)
+    reader = AtopBinaryReader(args.path)
+    metrics = getattr(args, 'metric', [])
 
     result = OrderedDict()
     for ts, data in reader.read(begin, end):
         result[ts] = data
 
-    if not len(result):
+    if not result:
         sys.stderr.write('empty result\n')
         sys.exit(1)
 
-    elif arguments['metrics']:
+    if args.command == 'metrics':
 
         metric_paths = set()
         for entry in result.values():
@@ -284,20 +289,20 @@ def main():
         for path in sorted(metric_paths):
             print('.'.join(path))
 
-    elif arguments['table']:
+    elif args.command == 'table':
 
         from tabulate import tabulate
         print(tabulate([[time] + [py_.get(value, metric) for metric in metrics]
                         for time, value in result.items()],
                        ['time'] + metrics, tablefmt="plain"))
 
-    elif arguments['json']:
+    elif args.command == 'json':
 
         from json import dumps
         print(dumps({time.isoformat(): {metric: py_.get(value, metric) for metric in metrics}
                      for time, value in result.items()}))
 
-    elif arguments['csv']:
+    elif args.command == 'csv':
 
         import csv
         writer = csv.writer(sys.stdout)
@@ -305,17 +310,14 @@ def main():
         for time, value in result.items():
             writer.writerow([time.isoformat()] + [py_.get(value, metric) for metric in metrics])
 
-    elif arguments['gnuplot']:
+    elif args.command == 'gnuplot':
 
         for metric in metrics:
-
-            width = int(arguments['--width'])
-            height = int(arguments['--height'])
 
             import subprocess as sp
             process = sp.Popen(["gnuplot"], stdin=sp.PIPE)
 
-            process.stdin.write(b"set term dumb %d %d \n" % (width, height))
+            process.stdin.write(b"set term dumb %d %d \n" % (args.width, args.height))
             process.stdin.write(b"unset border \n")
             process.stdin.write(b"unset ytics \n")
             process.stdin.write(b"unset xtics \n")
@@ -338,12 +340,9 @@ def main():
             process.stdin.close()
             process.wait()
 
-    elif arguments['diagram']:
+    elif args.command == 'diagram':
 
         import diagram
-
-        width = int(arguments['--width'])
-        height = int(arguments['--height'])
 
         class DiagramOptions(object):
             axis = True
@@ -359,7 +358,7 @@ def main():
                 self.__dict__.update(kwargs)
 
         for metric in metrics:
-            engine = diagram.AxisGraph(diagram.Point((width, height)), DiagramOptions())
+            engine = diagram.AxisGraph(diagram.Point((args.width, args.height)), DiagramOptions())
             engine.update([py_.get(value, metric) for value in result.values()])
             if hasattr(sys.stdout, 'buffer'):
                 engine.render(sys.stdout.buffer)

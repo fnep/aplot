@@ -3,4 +3,3 @@ pydash==6.0.0
 atoparser>=3.3.1
 tabulate==0.8.2
 diagram==0.2.25
-docopt==0.6.2
